@@ -1,5 +1,4 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Core;
 using Microsoft.AspNetCore.Mvc;
 using Model;
@@ -15,46 +14,48 @@ namespace ApiVendas.Controllers
         public async Task<IActionResult> Post([FromBody] Cliente cliente)
         {
             var cadastro = new ClienteCore(cliente).CadastroCliente();
-
-            if (cadastro.Status)
-                return Created($"https://localhost/api/produtos/{cliente.Id}", cadastro.Resultado);
-
-            return BadRequest(cadastro.Resultado);
+            return cadastro.Status ? (IActionResult)Created($"https://localhost/api/clientes/{cliente.Id}", cadastro.Resultado) : (IActionResult)BadRequest(cadastro.Resultado);
         }
 
         [HttpGet("{id}")]
-        public async Task<IActionResult> Get(Guid id)
+        public async Task<IActionResult> Get(string id)
         {
             var cliente = new ClienteCore().ID(id);
-
-            if (cliente.Status)
-                return Ok(cliente.Resultado);
-
-            return BadRequest(cliente.Resultado);
+            return cliente.Status ? (IActionResult)Ok(cliente.Resultado) : (IActionResult)BadRequest(cliente.Resultado);
         }
         [HttpGet]
         public async Task<IActionResult> Get() => Ok(new ClienteCore().Lista().Resultado);
 
-        [HttpPut]
-        public async Task<IActionResult> Put([FromBody] Cliente cliente)
+        [HttpGet("por-data")]
+        public async Task<IActionResult> GetPorData([FromQuery] string Date, [FromQuery] string Time)
         {
-            var cadastro = new ClienteCore(cliente).AtualizaCliente();
+            var retorno = new ClienteCore().PorData(Date, Time);
+            return retorno.Status ? Ok(retorno.Resultado) : BadRequest(retorno.Resultado);
+        }
 
-            if (cadastro.Status)
-                return Accepted($"https://localhost/api/produtos/{cliente.Id}", cadastro.Resultado);
+        [HttpGet("{direcao}/{Npagina}/{TPagina}")]
+        public async Task<IActionResult> BuscaPorPagina(string Direcao, int NPagina, int TPagina)
+        {
+            var retorno = new ClienteCore().PorPagina(NPagina, Direcao, TPagina);
+            return retorno.Status ? Ok(retorno.Resultado) : BadRequest(retorno.Resultado);
+        }
 
-            return BadRequest(cadastro.Resultado);
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Put(string id,[FromBody] Cliente cliente)
+        {
+            var cadastro = new ClienteCore(cliente).AtualizaCliente(id);
+
+            return cadastro.Status
+                ? (IActionResult)Accepted($"https://localhost/api/clientes/{cliente.Id}", cadastro.Resultado)
+                : (IActionResult)BadRequest(cadastro.Resultado);
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(Guid id)
+        public async Task<IActionResult> Delete(string id)
         {
             var cadastro = new ClienteCore().DeletaCliente(id);
 
-            if (cadastro.Status)
-                return NoContent();
-
-            return NotFound(cadastro.Resultado);
+            return cadastro.Status ? NoContent() : (IActionResult)NotFound(cadastro.Resultado);
         }
     }
 }
