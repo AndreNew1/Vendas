@@ -7,6 +7,11 @@
         public int Quantidade { get; set; }
 
         public decimal ValorTotal()=> Valor * Quantidade;
-        
+     
+        public void Trocar(Produto produto)
+        {
+            Nome = produto.Nome;
+            Valor = produto.Valor;
+        }
     }
 }

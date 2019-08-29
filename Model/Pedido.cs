@@ -11,7 +11,7 @@ namespace Model
         public decimal ValorTotalAPagar()
         {
             //ValorTotal setado para 0
-            //Para o metodo seja chamado em atualizar
+            //Caso o metodo seja chamado em atualizar
             ValorTotal = 0;
 
             //Recebe o valor total de todos os itens da lista

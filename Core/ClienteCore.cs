@@ -28,7 +28,7 @@ namespace Core
 
             RuleFor(e => e.Nome)
                 .NotNull()
-                .MinimumLength(4)
+                .MinimumLength(3)
                 .WithMessage("Nome Invalido");
 
             RuleFor(e => e.CPF)
@@ -108,8 +108,8 @@ namespace Core
 
             //Se CPF diferente do origina troca
             //O mesmo para Nome
-            if (RCliente.CPF != null) cliente.CPF = RCliente.CPF;
-            if (RCliente.Nome != null) cliente.Nome = RCliente.Nome;
+            if (RCliente.CPF != null&&RCliente.CPF.Length==11) cliente.CPF = RCliente.CPF;
+            if (RCliente.Nome != null&&RCliente.Nome.Length>=3) cliente.Nome = RCliente.Nome;
 
             file.ManipulacaoDeArquivos(Db);
 

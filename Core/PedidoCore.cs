@@ -28,7 +28,10 @@ namespace Core
                 Db = new Sistema();
 
             RPedido = pedido;
-
+            //Preenchendo informações do cliente
+            RPedido._cliente = Db.Clientes.SingleOrDefault(temp => temp.Id == RPedido._cliente.Id);
+            //Preenchendo informações dos produtos
+            RPedido.Compras.ForEach(c => c.Trocar(Db.Produtos.SingleOrDefault(temp => temp.Id == c.Id)));
             RuleFor(e => e._cliente)
             .NotNull()
             .NotEmpty()
@@ -87,7 +90,7 @@ namespace Core
         {
             var pedido = Db.Pedidos.SingleOrDefault(x => x.Id.ToString() == id);
 
-            //Se o pedido Não exista retorno false com a mensagem
+            //Se o pedido não existir retorno false com a mensagem
             return pedido == null
                 ? new Retorno() { Status = false, Resultado = "Pedido não existe" }
                 : new Retorno() { Status = true, Resultado = pedido };
@@ -104,22 +107,6 @@ namespace Core
 
             //se paginação é não é possivel
             return new Retorno() { Status = false, Resultado = "Digite as propriedades corretas" };
-        }
-
-        public Retorno AtualizaPedido(string id)
-        {
-            var pedido = Db.Pedidos.Find(c => c.Id.ToString() == id);
-
-            //Se o produto Não existe retorno false com a mensagem
-            if (pedido == null)
-                return new Retorno { Status = false, Resultado = "Pedido não existe" };
-
-            //Define valor Total do pedido
-            RPedido.ValorTotalAPagar();
-            //Reescreve arquivo
-            file.ManipulacaoDeArquivos(Db);
-
-            return new Retorno() { Status = true, Resultado = pedido };
         }
 
         public Retorno DeletaPedido(string id)
