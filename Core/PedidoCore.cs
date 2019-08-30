@@ -2,6 +2,7 @@
 using FluentValidation;
 using Model;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Core
@@ -33,7 +34,7 @@ namespace Core
             RPedido._cliente = Db.Clientes.SingleOrDefault(temp => temp.Id == RPedido._cliente.Id);
 
             //Preenchendo informações dos produtos
-            RPedido.Compras.ForEach(c => c.Trocar(Db.Produtos.SingleOrDefault(temp => temp.Id == c.Id)));
+            RPedido.Compras.ForEach(c => c.Copiar(Db.Produtos.SingleOrDefault(temp => temp.Id == c.Id)));
 
             RuleFor(e => e._cliente)
             .NotNull()
@@ -46,6 +47,7 @@ namespace Core
             .NotEmpty()
             .ForEach(e => e.Must(ValidaLista).WithMessage("O produto nâo existe na base de dados ou Quantidade ultrapassa o estoque"));
 
+            RuleForEach(e => e.Compras).Must(p => p.Quantidade > 0).WithMessage("Quantidade Invalida");
         }
 
         public Retorno CadastroPedido()
@@ -112,7 +114,7 @@ namespace Core
                 return new Retorno() { Status = true, Resultado = Db.Pedidos.OrderByDescending(x => x.DataCadastro).Skip((NPagina - 1) * TPagina).Take(TPagina).ToList() };
 
             //se paginação é não é possivel
-            return new Retorno() { Status = false, Resultado = "Digite as propriedades corretas" };
+            return new Retorno() { Status = false, Resultado = new List<string>() { "Digite as propriedades corretas" } };
         }
 
         public Retorno DeletaPedido(string id)

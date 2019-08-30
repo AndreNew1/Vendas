@@ -8,7 +8,7 @@
 
         public decimal ValorTotal()=> Valor * Quantidade;
      
-        public void Trocar(Produto produto)
+        public void Copiar(Produto produto)
         {
             Nome = produto.Nome;
             Valor = produto.Valor;

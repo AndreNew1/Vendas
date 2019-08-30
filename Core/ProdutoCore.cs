@@ -1,8 +1,8 @@
-﻿using AutoMapper;
-using Core.Util;
+﻿using Core.Util;
 using FluentValidation;
 using Model;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Core
@@ -91,7 +91,7 @@ namespace Core
                 return new Retorno() { Status = true, Resultado = Db.Produtos.OrderByDescending(x => x.Nome).Skip((NPagina - 1) * TPagina).Take(TPagina).ToList() };
 
             //se paginação é não é possivel
-            return new Retorno() { Status = false, Resultado = "Digite as propriedades corretas" };
+            return new Retorno() { Status = false, Resultado = new List<string>() { "Digite as propriedades corretas" } };
         }
 
         public Retorno ID(string id)
@@ -115,6 +115,7 @@ namespace Core
             //Troca valores
             if (RProduto.Valor != 0) produto.Valor = RProduto.Valor;
             if (RProduto.Nome != null) produto.Nome = RProduto.Nome;
+            if (RProduto.Quantidade != produto.Quantidade) produto.Quantidade = RProduto.Quantidade;
 
             file.ManipulacaoDeArquivos(Db);
 
