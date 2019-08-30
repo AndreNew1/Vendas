@@ -24,7 +24,7 @@ namespace ApiVendas.Controllers
         public async Task<IActionResult> Get(string id)
         {
             var cliente = new ClienteCore().ID(id);
-            return cliente.Status ? (IActionResult)Ok(cliente.Resultado) : (IActionResult)BadRequest(cliente.Resultado);
+            return cliente.Status ? Ok(cliente.Resultado) : BadRequest(cliente.Resultado);
         }
 
         //Retorna todos os clientes existentes
@@ -58,8 +58,8 @@ namespace ApiVendas.Controllers
             var cadastro = new ClienteCore(cliente).AtualizaCliente(id);
 
             return cadastro.Status
-                ? (IActionResult)Accepted($"https://localhost/api/clientes/{cliente.Id}", cadastro.Resultado)
-                : (IActionResult)BadRequest(cadastro.Resultado);
+                ? Accepted($"https://localhost/api/clientes/{cliente.Id}", cadastro.Resultado)
+                : BadRequest(cadastro.Resultado);
         }
 
         //Deleta um produto pelo seu Id
@@ -68,7 +68,7 @@ namespace ApiVendas.Controllers
         {
             var cadastro = new ClienteCore().DeletaCliente(id);
 
-            return cadastro.Status ? NoContent() : (IActionResult)NotFound(cadastro.Resultado);
+            return cadastro.Status ? NoContent() : NotFound(cadastro.Resultado);
         }
     }
 }

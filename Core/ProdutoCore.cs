@@ -68,8 +68,8 @@ namespace Core
         public Retorno PorData(string date,string time)
         {
             //Testa se os dados são datas
-            if (!DateTime.TryParse(date, out DateTime date1) && !DateTime.TryParse(time, out DateTime time1))
-                return new Retorno() { Status = false, Resultado = "Dados Invalidos" };
+            if (DateTime.TryParse(date, out DateTime date1) && DateTime.TryParse(time, out DateTime time1))
+                return new Retorno() { Status = true, Resultado = Db.Produtos.Where(x => x.DataCadastro >= date1 && x.DataCadastro <= time1) };
 
             //Caso Data final seja nula ou errada
             if (!DateTime.TryParse(time, out time1))
@@ -78,7 +78,7 @@ namespace Core
             //Caso Data inicial seja nula ou errada
             return !DateTime.TryParse(date, out date1)
                 ? new Retorno() { Status = true, Resultado = Db.Produtos.Where(x => x.DataCadastro <= time1) }
-                : new Retorno() { Status = true, Resultado = Db.Produtos.Where(x => x.DataCadastro >= date1 && x.DataCadastro <= time1) };
+                : new Retorno() { Status = false, Resultado = "Dados Invalidos" };
         }
 
         public Retorno PorPagina(int NPagina, string Direcao, int TPagina)

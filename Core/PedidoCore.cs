@@ -28,10 +28,13 @@ namespace Core
                 Db = new Sistema();
 
             RPedido = pedido;
+
             //Preenchendo informações do cliente
             RPedido._cliente = Db.Clientes.SingleOrDefault(temp => temp.Id == RPedido._cliente.Id);
+
             //Preenchendo informações dos produtos
             RPedido.Compras.ForEach(c => c.Trocar(Db.Produtos.SingleOrDefault(temp => temp.Id == c.Id)));
+
             RuleFor(e => e._cliente)
             .NotNull()
             .NotEmpty()
@@ -41,7 +44,7 @@ namespace Core
             RuleFor(e => e.Compras)
             .NotNull()
             .NotEmpty()
-            .ForEach(e => e.Must(ValidaLista).WithMessage("O produto nâo existe na base de dados"));
+            .ForEach(e => e.Must(ValidaLista).WithMessage("O produto nâo existe na base de dados ou Quantidade ultrapassa o estoque"));
 
         }
 
@@ -60,6 +63,9 @@ namespace Core
 
             //Calculo valor total
             RPedido.ValorTotalAPagar();
+
+            //Estoque
+            RPedido.Compras.ForEach(c => Db.Produtos.SingleOrDefault(d => d.Id == c.Id).Quantidade -= c.Quantidade);
 
             Db.Pedidos.Add(RPedido);
             //Reescreve arquivo
@@ -136,9 +142,8 @@ namespace Core
         public bool ValidaLista(Produto produto)
         {
             var tempProd = Db.Produtos.SingleOrDefault(e => e.Id == produto.Id);
-            if (tempProd==null) return false;
-            if (tempProd.Nome != produto.Nome) return false;
-            if (tempProd.Valor != produto.Valor) return false;
+            if (produto==null) return false;
+            if(produto.Quantidade>tempProd.Quantidade||produto.Quantidade==0) return false;
             return true;
         }
     }
