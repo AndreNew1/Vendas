@@ -12,15 +12,12 @@ namespace Core.Util
         {
             try
             {
-                //Caso Arquivo não existe
+            
                 if (!File.Exists(arquivoDb)) { File.Create(arquivoDb).Close(); }
-
-                //Caso sistema ainda não exista
-                //Ele lê o arquivo
+                
                 if (_sistema==null)
                     return (false, JsonConvert.DeserializeObject<Sistema>(File.ReadAllText(arquivoDb)));
-                //Caso o sistema ja exista 
-                //Escreve as mudanças
+ 
                 File.WriteAllText(arquivoDb, JsonConvert.SerializeObject(_sistema,Formatting.Indented));
 
                 return (true, null);

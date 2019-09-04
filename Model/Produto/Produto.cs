@@ -12,6 +12,7 @@
         {
             Nome = produto.Nome;
             Valor = produto.Valor;
+            DataCadastro = produto.DataCadastro;
         }
     }
 }

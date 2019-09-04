@@ -8,16 +8,12 @@ namespace Model
         public List<Produto> Compras { get; set; }
         public decimal ValorTotal { get; set; } 
 
-        public decimal ValorTotalAPagar()
+        public string ValorTotalAPagar()
         {
-            //ValorTotal setado para 0
-            //Caso o metodo seja chamado em atualizar
-            ValorTotal = 0;
-
             //Recebe o valor total de todos os itens da lista
             Compras.ForEach(e => ValorTotal += e.ValorTotal());
-            if (ValorTotal >= 300) return ValorTotal -= (ValorTotal * 0.10M);
-            return ValorTotal >= 100 ? ValorTotal -= (ValorTotal * 0.05M) : ValorTotal;
+            if (ValorTotal >= 300) return (ValorTotal -= ValorTotal * 0.10M).ToString("F2");
+            return ValorTotal >= 100 ? (ValorTotal -= ValorTotal * 0.05M).ToString("F2") : ValorTotal.ToString("F2");
         }
     }
 }

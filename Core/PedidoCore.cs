@@ -1,8 +1,8 @@
-﻿using Core.Util;
+﻿using AutoMapper;
+using Core.Util;
 using FluentValidation;
 using Model;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 
 namespace Core
@@ -12,15 +12,21 @@ namespace Core
 
         private Sistema Db { get; set; }
         private Pedido RPedido { get; set; }
+        private IMapper Mapper { get; set; }
         public PedidoCore()
         {
             //Ler arquivo
             Db = file.ManipulacaoDeArquivos(null).sistema;
+            
             //Caso arquivo não existe 
             if (Db == null)
                 Db = new Sistema();
+
+            //Intanciando o mapper
+            var mapper = new NewMapper();
+            Mapper = mapper.Config.CreateMapper();
         }
-        public PedidoCore(Pedido pedido)
+        public PedidoCore(PedidoView pedido)
         {
             //Ler arquivo
             Db = file.ManipulacaoDeArquivos(null).sistema;
@@ -28,7 +34,11 @@ namespace Core
             if (Db == null)
                 Db = new Sistema();
 
-            RPedido = pedido;
+            //Intanciando o mapper
+            var mapper = new NewMapper();
+            Mapper = mapper.Config.CreateMapper();
+
+            RPedido =Mapper.Map<Pedido>(pedido);
 
             //Preenchendo informações do cliente
             RPedido._cliente = Db.Clientes.SingleOrDefault(temp => temp.Id == RPedido._cliente.Id);
@@ -37,19 +47,25 @@ namespace Core
             RPedido.Compras.ForEach(c => c.Copiar(Db.Produtos.SingleOrDefault(temp => temp.Id == c.Id)));
 
             RuleFor(e => e._cliente)
-            .NotNull()
-            .NotEmpty()
-            .Must(ValidaCliente)
-            .WithMessage("Cliente não existe na base de dados");
+                .NotNull()
+                .NotEmpty()
+                .Must(cliente=>Db.Clientes.SingleOrDefault(e => e.Id == cliente.Id)!=null)
+                .WithMessage("Cliente não existe na base de dados");
 
             RuleFor(e => e.Compras)
-            .NotNull()
-            .NotEmpty()
-            .ForEach(e => e.Must(ValidaLista).WithMessage("O produto nâo existe na base de dados ou Quantidade ultrapassa o estoque"));
+                .NotNull()
+                .NotEmpty()
+                .ForEach(e => e.Must(ValidaLista).WithMessage("O produto nâo existe na base de dados ou Quantidade ultrapassa o estoque"));
 
-            RuleForEach(e => e.Compras).Must(p => p.Quantidade > 0).WithMessage("Quantidade Invalida");
+            RuleForEach(e => e.Compras)
+                .Must(p => p.Quantidade> 0)
+                .WithMessage("Quantidade Invalida");
         }
 
+        /// <summary>
+        /// Cadastro de um pedido 
+        /// </summary>
+        /// <returns></returns>
         public Retorno CadastroPedido()
         {
 
@@ -61,92 +77,109 @@ namespace Core
 
             //Se o pedido ja existe retorno false com a mensagem
             if (Db.Pedidos.SingleOrDefault(c => c.Id == RPedido.Id) != null)
-                return new Retorno() { Status = false, Resultado = "Pedido ja cadastrado" };
+                return new Retorno { Status = false, Resultado = "Pedido ja cadastrado" };
 
             //Calculo valor total
-            RPedido.ValorTotalAPagar();
+            RPedido.ValorTotal=decimal.Parse(RPedido.ValorTotalAPagar());
 
-            //Estoque
+            //retirada da quantidade dos produtos do estoque 
             RPedido.Compras.ForEach(c => Db.Produtos.SingleOrDefault(d => d.Id == c.Id).Quantidade -= c.Quantidade);
 
+            //Adiciona o pedido ao "banco"
             Db.Pedidos.Add(RPedido);
+
             //Reescreve arquivo
             file.ManipulacaoDeArquivos(Db);
 
-            return new Retorno() { Status = true, Resultado = RPedido };
+            return new Retorno() { Status = true, Resultado =Mapper.Map<PedidoViewRetorno>(RPedido) };
         }
-        public Retorno Lista() => new Retorno() { Status = true, Resultado = Db.Pedidos.OrderBy(x=>x._cliente.Nome)};
 
-        public Retorno PorData(string date, string time)
+        public Retorno Lista() => new Retorno { Status = true, Resultado = Mapper.Map<PedidoViewRetorno>(Db.Pedidos.OrderBy(x=>x._cliente.Nome))};
+
+        /// <summary>
+        /// Retorna uma lista refinada por data
+        /// </summary>
+        /// <param name="DataInicial">Parametro para refinar a busca por uma data inicial</param>
+        /// <param name="DataFinal">Parametro para refinar a busca por uma data Final</param>
+        /// <returns></returns>
+        public Retorno PorData(string DataInicial, string DataFinal)
         {
-            //Testa se os dados são datas
-            if (!DateTime.TryParse(date, out DateTime date1) && !DateTime.TryParse(time, out DateTime time1))
-                return new Retorno() { Status = false, Resultado = "Dados Invalidos" };
+
+            if (DateTime.TryParse(DataInicial, out DateTime date) && DateTime.TryParse(DataFinal, out DateTime time) )
+                return new Retorno { Status = false, Resultado = "Dados Invalidos" };
 
             //Caso Data final seja nula ou errada
-            if (!DateTime.TryParse(time, out time1))
-                return new Retorno() { Status = true, Resultado = Db.Pedidos.Where(x => x.DataCadastro >= date1) };
+            if (!DateTime.TryParse(DataFinal, out time))
+                return new Retorno { Status = true, Resultado = Mapper.Map<PedidoViewRetorno>(Db.Pedidos.Where(x => x.DataCadastro >= date)) };
 
             //Caso Data inicial seja nula ou errada
-            if (!DateTime.TryParse(date, out date1))
-                return new Retorno() { Status = true, Resultado = Db.Pedidos.Where(x => x.DataCadastro <= time1) };
-
-            return new Retorno() { Status = true, Resultado = Db.Pedidos.Where(x => x.DataCadastro >= date1 && x.DataCadastro <= time1) };
+            return !DateTime.TryParse(DataInicial, out date)?
+                new Retorno { Status = true, Resultado = Mapper.Map<PedidoViewRetorno>(Db.Pedidos.Where(x => x.DataCadastro <= time)) }:
+                new Retorno { Status = true, Resultado =Mapper.Map<PedidoViewRetorno>(Db.Pedidos.Where(x => x.DataCadastro >= date && x.DataCadastro <= time)) };
         }
 
         public Retorno ID(string id)
         {
-            var pedido = Db.Pedidos.SingleOrDefault(x => x.Id.ToString() == id);
+            var pedido = Db.Pedidos.SingleOrDefault(x => x.Id == Guid.Parse(id));
 
             //Se o pedido não existir retorno false com a mensagem
             return pedido == null
-                ? new Retorno() { Status = false, Resultado = "Pedido não existe" }
-                : new Retorno() { Status = true, Resultado = pedido };
+                ? new Retorno { Status = false, Resultado = "Pedido não existe" }
+                : new Retorno { Status = true, Resultado =Mapper.Map<PedidoViewRetorno>(pedido) };
         }
 
-        public Retorno PorPagina(int NPagina, string Direcao, int TPagina)
+        public Retorno PorPagina(int NumPagina, string Ordenacao, int TamanhoPagina)
         {
+            //limite de elementos por paginas
+            if (TamanhoPagina > 30) TamanhoPagina = 30;
 
-            if (Direcao.ToLower() == "asc" && NPagina >= 1 && TPagina >= 1)
-                return new Retorno() { Status = true, Resultado = Db.Pedidos.OrderBy(x => x.DataCadastro).Skip((NPagina - 1) * TPagina).Take(TPagina).ToList() };
+            //Calculo para paginas
+            var lista = Db.Pedidos.Count;
+            var Paginas = lista / 15;
+            if (lista % 15 != 0) Paginas += 1;
 
-            if (Direcao.ToLower() == "des" && NPagina >= 1 && TPagina >= 1)
-                return new Retorno() { Status = true, Resultado = Db.Pedidos.OrderByDescending(x => x.DataCadastro).Skip((NPagina - 1) * TPagina).Take(TPagina).ToList() };
+            try
+            {
+                Paginas = lista / TamanhoPagina;
+                if (lista % TamanhoPagina != 0) Paginas += 1;
 
+                if (Ordenacao.ToLower() == "Valor")
+                    return new Retorno { Status = true, Resultado = (Mapper.Map<PedidoViewRetorno>(Db.Pedidos.OrderBy(x => x.ValorTotal).Skip((NumPagina - 1) * TamanhoPagina).Take(TamanhoPagina)), $"Total de paginas: {Paginas}") };
+
+                return Ordenacao.ToLower() == "Nome" && NumPagina >= 1 ?
+                      new Retorno { Status = true, Resultado = (Mapper.Map<PedidoViewRetorno>(Db.Pedidos.OrderBy(x => x._cliente.Nome).Skip((NumPagina - 1) * TamanhoPagina).Take(TamanhoPagina)), $"Total de paginas: {Paginas}") } :
+                      new Retorno { Status = true, Resultado = (Mapper.Map<PedidoViewRetorno>(Db.Pedidos.Skip((NumPagina - 1) * TamanhoPagina).Take(TamanhoPagina)), $"Total de paginas: {Paginas}") };
+            }
+            catch (Exception){}
             //se paginação é não é possivel
-            return new Retorno() { Status = false, Resultado = new List<string>() { "Digite as propriedades corretas" } };
+            return new Retorno { Status = true, Resultado = (Mapper.Map<PedidoViewRetorno>(Db.Pedidos.OrderBy(x => x.DataCadastro).Take(15)), $"Total de paginas: {Paginas}") };
         }
-
+        /// <summary>
+        /// Deleta um pedido pela string passada
+        /// </summary>
+        /// <param name="id">parametro passado para achar o pedido</param>
+        /// <returns></returns>
         public Retorno DeletaPedido(string id)
         {
-            RPedido = Db.Pedidos.SingleOrDefault(c => c.Id.ToString() == id);
+            RPedido = Db.Pedidos.SingleOrDefault(c => c.Id ==Guid.Parse(id));
             //Se o produto Não existe retorno false com a mensagem
             if (RPedido == null)
-                return new Retorno() { Status = false, Resultado = "Pedido não existe" };
+                return new Retorno { Status = false, Resultado = "Pedido não existe" };
  
             Db.Pedidos.Remove(RPedido);
 
             //Reescreve arquivo 
             file.ManipulacaoDeArquivos(Db);
 
-            return new Retorno() { Status = true, Resultado = "Pedido Apagado" };
+            return new Retorno { Status = true, Resultado = "Pedido Apagado" };
         }
-        //Validação de cliente em um pedido
-        public bool ValidaCliente(Cliente cliente)
-        {
-            var tempcliente = Db.Clientes.SingleOrDefault(e => e.Id == cliente.Id);
-            if (tempcliente == null) return false;
-            if (tempcliente.Nome != cliente.Nome) return false;
-            if (tempcliente.CPF != cliente.CPF) return false;
-            return true;
-        }
+
         //Valida a lista de produtos
         public bool ValidaLista(Produto produto)
         {
             var tempProd = Db.Produtos.SingleOrDefault(e => e.Id == produto.Id);
             if (produto==null) return false;
-            if(produto.Quantidade>tempProd.Quantidade||produto.Quantidade==0) return false;
-            return true;
+            return produto.Quantidade>tempProd.Quantidade? false : true;
         }
     }
 }

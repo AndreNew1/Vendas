@@ -11,15 +11,23 @@ namespace ApiVendas.Controllers
     public class ClientesController : Controller
     {
 
-        //Cadastra um Cliente na base de dados
+        /// <summary>
+        /// Cadastra um cliente no banco de dados
+        /// </summary>
+        /// <param name="cliente">modelo de um clienteView</param>
+        /// <returns>retorna um objeto cliente</returns>
         [HttpPost]
-        public async Task<IActionResult> Post([FromBody] Cliente cliente)
+        public async Task<IActionResult> Post([FromBody] ClienteView cliente)
         {
             var cadastro = new ClienteCore(cliente).CadastroCliente();
-            return cadastro.Status ? Created($"https://localhost/api/clientes/{cliente.Id}", cadastro.Resultado) : BadRequest(cadastro.Resultado);
+            return cadastro.Status ? Created($"https://localhost/api/clientes/{cadastro.Resultado.Id}", cadastro.Resultado) : BadRequest(cadastro.Resultado);
         }
 
-        //Busca por um Cliente especifico pelo seu id
+        /// <summary>
+        /// Busca um cliente na base de dados
+        /// </summary>
+        /// <param name="id">parametro para procura</param>
+        /// <returns>retorna um objeto cliente do id passado</returns>
         [HttpGet("{id}")]
         public async Task<IActionResult> Get(string id)
         {
@@ -27,42 +35,51 @@ namespace ApiVendas.Controllers
             return cliente.Status ? Ok(cliente.Resultado) : BadRequest(cliente.Resultado);
         }
 
-        //Retorna todos os clientes existentes
+        //Retorna uma lista com todos os clientes existentes
         [HttpGet]
-        public async Task<IActionResult> Get() => Ok(new ClienteCore().Lista().Resultado);
-
+        public async Task<IActionResult> Get()
+        {
+            var lista = new ClienteCore().Lista().Resultado;
+            return lista.Count != 0 ? Ok(lista) : BadRequest("Não existem clientes na base de dados");
+        }
         //Busca por Datas Via QUERY
         [HttpGet("por-data")]
-        public async Task<IActionResult> GetPorData([FromQuery] string Date, [FromQuery] string Time)
+        public async Task<IActionResult> GetPorData([FromQuery] string DataInicial, [FromQuery] string DataFinal)
         {
-            var retorno = new ClienteCore().PorData(Date, Time);
+            var retorno = new ClienteCore().PorData(DataInicial, DataFinal);
             return retorno.Status ? Ok(retorno.Resultado) : BadRequest(retorno.Resultado);
         }
 
         //Busca por Paginação dos elementos pelos parametros passados pela URL
-        [HttpGet("{direcao}/{Npagina}/{TPagina}")]
-        public async Task<IActionResult> BuscaPorPagina(string Direcao, int NPagina, int TPagina)
+        [HttpGet("{Ordenacao}/{NumPagina}/{TamanhoPagina}")]
+        public async Task<IActionResult> BuscaPorPagina(string Ordenacao, int NumPagina, int TamanhoPagina)
         {
-            var retorno = new ClienteCore().PorPagina(NPagina, Direcao, TPagina);
-            //Caso passe a uma pagina vazia
-            if (retorno.Resultado.Count == 0)
-                return BadRequest(retorno.Resultado);
+            var retorno = new ClienteCore().PorPagina(NumPagina, Ordenacao, TamanhoPagina);
 
             return retorno.Status ? Ok(retorno.Resultado) : BadRequest(retorno.Resultado);
         }
 
-        //Atualização do dados de um cliente
+        /// <summary>
+        /// Atualiza um cliente 
+        /// </summary>
+        /// <param name="id">parametro para achar o cliente para modificação</param>
+        /// <param name="cliente">Model para alterar os dados do cliente</param>
+        /// <returns></returns>
         [HttpPut("{id}")]
-        public async Task<IActionResult> Put(string id,[FromBody] Cliente cliente)
+        public async Task<IActionResult> Put(string id,[FromBody] ClienteView cliente)
         {
             var cadastro = new ClienteCore(cliente).AtualizaCliente(id);
 
             return cadastro.Status
-                ? Accepted($"https://localhost/api/clientes/{cliente.Id}", cadastro.Resultado)
+                ? Accepted($"https://localhost/api/clientes/{cadastro.Resultado.Id}", cadastro.Resultado)
                 : BadRequest(cadastro.Resultado);
         }
 
-        //Deleta um produto pelo seu Id
+        /// <summary>
+        /// Deleta um produto da base de dados
+        /// </summary>
+        /// <param name="id">paramet</param>
+        /// <returns></returns>
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(string id)
         {
