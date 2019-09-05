@@ -3,6 +3,7 @@ using Core.Util;
 using FluentValidation;
 using Model;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Core
@@ -13,30 +14,29 @@ namespace Core
         private Sistema Db { get; set; }
         private Pedido RPedido { get; set; }
         private IMapper Mapper { get; set; }
-        public PedidoCore()
+
+        public PedidoCore(IMapper mapper)
         {
             //Ler arquivo
             Db = file.ManipulacaoDeArquivos(null).sistema;
-            
+
             //Caso arquivo não existe 
-            if (Db == null)
-                Db = new Sistema();
+            Db = Db ?? new Sistema();
 
             //Intanciando o mapper
-            var mapper = new NewMapper();
-            Mapper = mapper.Config.CreateMapper();
+            Mapper = mapper;
         }
-        public PedidoCore(PedidoView pedido)
+
+        public PedidoCore(PedidoView pedido,IMapper mapper)
         {
             //Ler arquivo
             Db = file.ManipulacaoDeArquivos(null).sistema;
+
             //Caso arquivo não existe 
-            if (Db == null)
-                Db = new Sistema();
+            Db = Db ?? new Sistema();
 
             //Intanciando o mapper
-            var mapper = new NewMapper();
-            Mapper = mapper.Config.CreateMapper();
+            Mapper = mapper;
 
             RPedido =Mapper.Map<Pedido>(pedido);
 
@@ -66,6 +66,7 @@ namespace Core
         /// Cadastro de um pedido 
         /// </summary>
         /// <returns></returns>
+        
         public Retorno CadastroPedido()
         {
 
@@ -94,7 +95,19 @@ namespace Core
             return new Retorno() { Status = true, Resultado =Mapper.Map<PedidoViewRetorno>(RPedido) };
         }
 
-        public Retorno Lista() => new Retorno { Status = true, Resultado = Mapper.Map<PedidoViewRetorno>(Db.Pedidos.OrderBy(x=>x._cliente.Nome))};
+        /// <summary>
+        /// Retorna todos os elementos da lista Pedido
+        /// </summary>
+        /// <returns></returns>
+
+        public Retorno Lista()
+        {
+            var resposta = Mapper.Map<List<PedidoViewRetorno>>(Db.Pedidos.OrderBy(x => x._cliente.Nome));
+
+            return resposta.Count != 0 ?
+                     new Retorno { Status = true, Resultado = resposta } :
+                     new Retorno { Status = false, Resultado = "Não existe consulta" };
+        }
 
         /// <summary>
         /// Retorna uma lista refinada por data
@@ -102,22 +115,29 @@ namespace Core
         /// <param name="DataInicial">Parametro para refinar a busca por uma data inicial</param>
         /// <param name="DataFinal">Parametro para refinar a busca por uma data Final</param>
         /// <returns></returns>
+        
         public Retorno PorData(string DataInicial, string DataFinal)
         {
 
-            if (DateTime.TryParse(DataInicial, out DateTime date) && DateTime.TryParse(DataFinal, out DateTime time) )
+            if (!DateTime.TryParse(DataInicial, out DateTime date) && !DateTime.TryParse(DataFinal, out DateTime time) )
                 return new Retorno { Status = false, Resultado = "Dados Invalidos" };
 
             //Caso Data final seja nula ou errada
             if (!DateTime.TryParse(DataFinal, out time))
-                return new Retorno { Status = true, Resultado = Mapper.Map<PedidoViewRetorno>(Db.Pedidos.Where(x => x.DataCadastro >= date)) };
+                return new Retorno { Status = true, Resultado = Mapper.Map<List<PedidoViewRetorno>>(Db.Pedidos.Where(x => x.DataCadastro >= date)) };
 
             //Caso Data inicial seja nula ou errada
             return !DateTime.TryParse(DataInicial, out date)?
-                new Retorno { Status = true, Resultado = Mapper.Map<PedidoViewRetorno>(Db.Pedidos.Where(x => x.DataCadastro <= time)) }:
-                new Retorno { Status = true, Resultado =Mapper.Map<PedidoViewRetorno>(Db.Pedidos.Where(x => x.DataCadastro >= date && x.DataCadastro <= time)) };
+                new Retorno { Status = true, Resultado = Mapper.Map<List<PedidoViewRetorno>>(Db.Pedidos.Where(x => x.DataCadastro <= time)) }:
+                new Retorno { Status = true, Resultado =Mapper.Map<List<PedidoViewRetorno>>(Db.Pedidos.Where(x => x.DataCadastro >= date && x.DataCadastro <= time)) };
         }
 
+        /// <summary>
+        /// Busca um Pedido pelos parametros passados
+        /// </summary>
+        /// <param name="id">string passada para procurar por id</param>
+        /// <returns></returns>
+        
         public Retorno ID(string id)
         {
             var pedido = Db.Pedidos.SingleOrDefault(x => x.Id == Guid.Parse(id));
@@ -128,6 +148,14 @@ namespace Core
                 : new Retorno { Status = true, Resultado =Mapper.Map<PedidoViewRetorno>(pedido) };
         }
 
+        /// <summary>
+        /// Consulta os Pedido
+        /// </summary>
+        /// <param name="NumPagina">É para controlar a pagina que esta sendo mostrada</param>
+        /// <param name="Ordenacao">É para definir se estara por nome ou data</param>
+        /// <param name="TamanhoPagina">Tamanho da pagina</param>
+        /// <returns>Retorna uma lista de Pedido</returns>
+        
         public Retorno PorPagina(int NumPagina, string Ordenacao, int TamanhoPagina)
         {
             //limite de elementos por paginas
@@ -144,21 +172,24 @@ namespace Core
                 if (lista % TamanhoPagina != 0) Paginas += 1;
 
                 if (Ordenacao.ToLower() == "Valor")
-                    return new Retorno { Status = true, Resultado = (Mapper.Map<PedidoViewRetorno>(Db.Pedidos.OrderBy(x => x.ValorTotal).Skip((NumPagina - 1) * TamanhoPagina).Take(TamanhoPagina)), $"Total de paginas: {Paginas}") };
+                    return new Retorno { Status = true, Resultado = (Mapper.Map<List<PedidoViewRetorno>>(Db.Pedidos.OrderBy(x => x.ValorTotal).Skip((NumPagina - 1) * TamanhoPagina).Take(TamanhoPagina)), $"Total de paginas: {Paginas}") };
 
                 return Ordenacao.ToLower() == "Nome" && NumPagina >= 1 ?
-                      new Retorno { Status = true, Resultado = (Mapper.Map<PedidoViewRetorno>(Db.Pedidos.OrderBy(x => x._cliente.Nome).Skip((NumPagina - 1) * TamanhoPagina).Take(TamanhoPagina)), $"Total de paginas: {Paginas}") } :
-                      new Retorno { Status = true, Resultado = (Mapper.Map<PedidoViewRetorno>(Db.Pedidos.Skip((NumPagina - 1) * TamanhoPagina).Take(TamanhoPagina)), $"Total de paginas: {Paginas}") };
+                      new Retorno { Status = true, Resultado = (Mapper.Map<List<PedidoViewRetorno>>(Db.Pedidos.OrderBy(x => x._cliente.Nome).Skip((NumPagina - 1) * TamanhoPagina).Take(TamanhoPagina)), $"Total de paginas: {Paginas}") } :
+                      new Retorno { Status = true, Resultado = (Mapper.Map<List<PedidoViewRetorno>>(Db.Pedidos.Skip((NumPagina - 1) * TamanhoPagina).Take(TamanhoPagina)), $"Total de paginas: {Paginas}") };
             }
             catch (Exception){}
+
             //se paginação é não é possivel
-            return new Retorno { Status = true, Resultado = (Mapper.Map<PedidoViewRetorno>(Db.Pedidos.OrderBy(x => x.DataCadastro).Take(15)), $"Total de paginas: {Paginas}") };
+            return new Retorno { Status = true, Resultado = (Mapper.Map<List<PedidoViewRetorno>>(Db.Pedidos.OrderBy(x => x.DataCadastro).Take(15)), $"Total de paginas: {Paginas}") };
         }
+
         /// <summary>
-        /// Deleta um pedido pela string passada
+        /// Deleta um pedido pela id passado
         /// </summary>
         /// <param name="id">parametro passado para achar o pedido</param>
         /// <returns></returns>
+        
         public Retorno DeletaPedido(string id)
         {
             RPedido = Db.Pedidos.SingleOrDefault(c => c.Id ==Guid.Parse(id));

@@ -5,26 +5,66 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Swashbuckle.AspNetCore.Swagger;
 using Microsoft.AspNetCore.Rewrite;
+using AutoMapper;
+using Model;
 
 namespace ApiVendas
 {
     public class Startup
     {
+        public IConfiguration Configuration { get; }
         public Startup(IConfiguration configuration)
         {
             Configuration = configuration;
         }
 
-        public IConfiguration Configuration { get; }
-
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            var Config = new MapperConfiguration(cfg =>
+            {
+                cfg.CreateMap<ClienteView, Cliente>()
+                .ForMember(d => d.Nome, opts => opts.Condition(src => src.Nome != null))
+                .ForMember(d => d.CPF, opts => opts.Condition(src => src.CPF != null));
+
+                cfg.CreateMap<Cliente, ClienteViewRetorno>()
+                .ForMember(d => d.DataCadastro, opts => opts.MapFrom(s => s.DataCadastro.ToString("dd/MMMM/yyyy")));
+
+                cfg.CreateMap<ProdutoView, Produto>();
+
+                cfg.CreateMap<Produto, ProdutoViewRetorno>()
+                .ForMember(d => d.DataCadastro, opts => opts.MapFrom(s => s.DataCadastro.ToString("dd/MMMM/yyyy")));
+
+                cfg.CreateMap<Cliente, Cliente>()
+                .ForMember(d => d.DataCadastro, opts => opts.Ignore())
+                .ForMember(d => d.Id, opts => opts.Ignore())
+                .ForMember(d => d.Nome, opts => opts.Condition(src => src.Nome != null))
+                .ForMember(d => d.CPF, opts => opts.Condition(src => src.CPF != null));
+
+                cfg.CreateMap<Produto, Produto>()
+                .ForMember(d => d.DataCadastro, opts => opts.Ignore())
+                .ForMember(d => d.Id, opts => opts.Ignore())
+                .ForMember(d => d.Nome, opts => opts.Condition(src => src.Nome != null))
+                .ForMember(d => d.Quantidade, opts => opts.Condition(src => src.Quantidade > 0))
+                .ForMember(d => d.Valor, opts => opts.Condition(src => src.Valor > 0));
+
+                cfg.CreateMap<PedidoView, Pedido>()
+                .ForMember(d => d._cliente, opts => opts.MapFrom(s => new Cliente { Id = s.ClienteId }));
+
+                cfg.CreateMap<ComprasView, Produto>();
+
+                cfg.CreateMap<Pedido, PedidoViewRetorno>()
+                .ForMember(d => d.DataCadastro, opts => opts.MapFrom(s => s.DataCadastro.ToString("dd/MMMM/yyyy")));
+            });
+
+            IMapper mapper = Config.CreateMapper();
+            services.AddSingleton(mapper);
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new Info { Title = "Vendas" });
             });
+            
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

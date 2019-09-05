@@ -5,7 +5,7 @@ namespace Model
 {
     public class PedidoView
     {
-        public Guid _clienteId { get; set; }
+        public Guid ClienteId { get; set; }
         public List<ComprasView> Compras { get; set; }
     }
 }
