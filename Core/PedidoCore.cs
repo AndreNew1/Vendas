@@ -10,7 +10,6 @@ namespace Core
 {
     public class PedidoCore:AbstractValidator<Pedido>
     {
-
         private Sistema Db { get; set; }
         private Pedido RPedido { get; set; }
         private IMapper Mapper { get; set; }
@@ -76,10 +75,6 @@ namespace Core
             if (!results.IsValid)
                 return new Retorno { Status = false, Resultado = results.Errors.Select(c=>c.ErrorMessage) };
 
-            //Se o pedido ja existe retorno false com a mensagem
-            if (Db.Pedidos.SingleOrDefault(c => c.Id == RPedido.Id) != null)
-                return new Retorno { Status = false, Resultado = "Pedido ja cadastrado" };
-
             //Calculo valor total
             RPedido.ValorTotal=decimal.Parse(RPedido.ValorTotalAPagar());
 
@@ -110,6 +105,73 @@ namespace Core
         }
 
         /// <summary>
+        /// Busca um Pedido pelos parametros passados
+        /// </summary>
+        /// <param name="id">string passada para procurar por id</param>
+        /// <returns></returns>
+        
+        public Retorno ID(string id)
+        {
+            try{
+                return new Retorno { Status = true, Resultado = Mapper.Map<PedidoViewRetorno>(Db.Pedidos.Single(x => x.Id == Guid.Parse(id))) };
+            }
+            catch (Exception) { }
+            return new Retorno { Status = false, Resultado = "Pedido não existe" };
+        }
+
+        /// <summary>
+        /// Deleta um pedido pela id passado
+        /// </summary>
+        /// <param name="id">parametro passado para achar o pedido</param>
+        /// <returns></returns>
+
+        public Retorno DeletaPedido(string id)
+        {
+            try {
+                RPedido = Db.Pedidos.Single(c => c.Id == Guid.Parse(id));
+
+                Db.Pedidos.Remove(RPedido);
+
+                //Reescreve arquivo 
+                file.ManipulacaoDeArquivos(Db);
+
+                return new Retorno { Status = true, Resultado = "Pedido Apagado" };
+            }
+            catch (Exception) { }
+            return new Retorno { Status = false, Resultado = "Pedido não existe" };
+        }
+
+        /// <summary>
+        /// Consulta os Pedido
+        /// </summary>
+        /// <param name="NumeroPagina">É para controlar a pagina que esta sendo mostrada</param>
+        /// <param name="Ordem">É para definir se estara por nome ou data</param>
+        /// <param name="TamanhoPagina">Tamanho da pagina</param>
+        /// <returns>Retorna uma lista de Pedido</returns>
+        
+        public Retorno PorPagina(int NumeroPagina, string Ordem, int TamanhoPagina)
+        {
+            //limite de elementos por paginas
+            if (TamanhoPagina > 30) TamanhoPagina = 30;
+
+            try
+            {
+                var Pagina = CalculoPaginas(TamanhoPagina);
+
+                if (Ordem.ToLower() == "Valor")
+                    return new Retorno { Status = true, Resultado = (Mapper.Map<List<PedidoViewRetorno>>(Db.Pedidos.OrderBy(x => x.ValorTotal).Skip((NumeroPagina - 1) * TamanhoPagina).Take(TamanhoPagina)), $"Total de paginas: {Pagina}") };
+
+                return Ordem.ToLower() == "Nome" && NumeroPagina >= 1 ?
+                      new Retorno { Status = true, Resultado = (Mapper.Map<List<PedidoViewRetorno>>(Db.Pedidos.OrderBy(x => x._cliente.Nome).Skip((NumeroPagina - 1) * TamanhoPagina).Take(TamanhoPagina)), $"Total de paginas: {Pagina}") } :
+                      new Retorno { Status = true, Resultado = (Mapper.Map<List<PedidoViewRetorno>>(Db.Pedidos.Skip((NumeroPagina - 1) * TamanhoPagina).Take(TamanhoPagina)), $"Total de paginas: {Pagina}") };
+            }
+            catch (Exception){}
+
+            //se paginação é não é possivel
+            return new Retorno { Status = true, Resultado = (Mapper.Map<List<PedidoViewRetorno>>(Db.Pedidos.OrderBy(x => x.DataCadastro).Take(15)), $"Total de paginas: {CalculoPaginas(15)}") };
+        }
+
+        /// <summary>
         /// Retorna uma lista refinada por data
         /// </summary>
         /// <param name="DataInicial">Parametro para refinar a busca por uma data inicial</param>
@@ -130,87 +192,22 @@ namespace Core
             return !DateTime.TryParse(DataInicial, out date)?
                 new Retorno { Status = true, Resultado = Mapper.Map<List<PedidoViewRetorno>>(Db.Pedidos.Where(x => x.DataCadastro <= time)) }:
                 new Retorno { Status = true, Resultado =Mapper.Map<List<PedidoViewRetorno>>(Db.Pedidos.Where(x => x.DataCadastro >= date && x.DataCadastro <= time)) };
-        }
-
-        /// <summary>
-        /// Busca um Pedido pelos parametros passados
-        /// </summary>
-        /// <param name="id">string passada para procurar por id</param>
-        /// <returns></returns>
+        }       
         
-        public Retorno ID(string id)
-        {
-            var pedido = Db.Pedidos.SingleOrDefault(x => x.Id == Guid.Parse(id));
-
-            //Se o pedido não existir retorno false com a mensagem
-            return pedido == null
-                ? new Retorno { Status = false, Resultado = "Pedido não existe" }
-                : new Retorno { Status = true, Resultado =Mapper.Map<PedidoViewRetorno>(pedido) };
-        }
-
-        /// <summary>
-        /// Consulta os Pedido
-        /// </summary>
-        /// <param name="NumPagina">É para controlar a pagina que esta sendo mostrada</param>
-        /// <param name="Ordenacao">É para definir se estara por nome ou data</param>
-        /// <param name="TamanhoPagina">Tamanho da pagina</param>
-        /// <returns>Retorna uma lista de Pedido</returns>
-        
-        public Retorno PorPagina(int NumPagina, string Ordenacao, int TamanhoPagina)
-        {
-            //limite de elementos por paginas
-            if (TamanhoPagina > 30) TamanhoPagina = 30;
-
-            //Calculo para paginas
-            var lista = Db.Pedidos.Count;
-            var Paginas = lista / 15;
-            if (lista % 15 != 0) Paginas += 1;
-
-            try
-            {
-                Paginas = lista / TamanhoPagina;
-                if (lista % TamanhoPagina != 0) Paginas += 1;
-
-                if (Ordenacao.ToLower() == "Valor")
-                    return new Retorno { Status = true, Resultado = (Mapper.Map<List<PedidoViewRetorno>>(Db.Pedidos.OrderBy(x => x.ValorTotal).Skip((NumPagina - 1) * TamanhoPagina).Take(TamanhoPagina)), $"Total de paginas: {Paginas}") };
-
-                return Ordenacao.ToLower() == "Nome" && NumPagina >= 1 ?
-                      new Retorno { Status = true, Resultado = (Mapper.Map<List<PedidoViewRetorno>>(Db.Pedidos.OrderBy(x => x._cliente.Nome).Skip((NumPagina - 1) * TamanhoPagina).Take(TamanhoPagina)), $"Total de paginas: {Paginas}") } :
-                      new Retorno { Status = true, Resultado = (Mapper.Map<List<PedidoViewRetorno>>(Db.Pedidos.Skip((NumPagina - 1) * TamanhoPagina).Take(TamanhoPagina)), $"Total de paginas: {Paginas}") };
-            }
-            catch (Exception){}
-
-            //se paginação é não é possivel
-            return new Retorno { Status = true, Resultado = (Mapper.Map<List<PedidoViewRetorno>>(Db.Pedidos.OrderBy(x => x.DataCadastro).Take(15)), $"Total de paginas: {Paginas}") };
-        }
-
-        /// <summary>
-        /// Deleta um pedido pela id passado
-        /// </summary>
-        /// <param name="id">parametro passado para achar o pedido</param>
-        /// <returns></returns>
-        
-        public Retorno DeletaPedido(string id)
-        {
-            RPedido = Db.Pedidos.SingleOrDefault(c => c.Id ==Guid.Parse(id));
-            //Se o produto Não existe retorno false com a mensagem
-            if (RPedido == null)
-                return new Retorno { Status = false, Resultado = "Pedido não existe" };
- 
-            Db.Pedidos.Remove(RPedido);
-
-            //Reescreve arquivo 
-            file.ManipulacaoDeArquivos(Db);
-
-            return new Retorno { Status = true, Resultado = "Pedido Apagado" };
-        }
-
         //Valida a lista de produtos
         public bool ValidaLista(Produto produto)
         {
             var tempProd = Db.Produtos.SingleOrDefault(e => e.Id == produto.Id);
             if (produto==null) return false;
             return produto.Quantidade>tempProd.Quantidade? false : true;
+        }
+
+        public int CalculoPaginas(int TamanhoPagina)
+        {
+            //Calculo para paginas
+            var lista = Db.Pedidos.Count;
+            var Paginas = lista / TamanhoPagina;
+            return lista % TamanhoPagina != 0 ? Paginas += 1 : Paginas;
         }
     }
 }

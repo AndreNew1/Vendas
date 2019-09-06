@@ -38,13 +38,13 @@ namespace ApiVendas
                 cfg.CreateMap<Cliente, Cliente>()
                 .ForMember(d => d.DataCadastro, opts => opts.Ignore())
                 .ForMember(d => d.Id, opts => opts.Ignore())
-                .ForMember(d => d.Nome, opts => opts.Condition(src => src.Nome != null))
-                .ForMember(d => d.CPF, opts => opts.Condition(src => src.CPF != null));
+                .ForMember(d => d.Nome, opts => opts.Condition(src => src.Nome != null&&src.Nome.Length>3))
+                .ForMember(d => d.CPF, opts => opts.Condition(src => src.CPF != null&&src.CPF.Length==11));
 
                 cfg.CreateMap<Produto, Produto>()
                 .ForMember(d => d.DataCadastro, opts => opts.Ignore())
                 .ForMember(d => d.Id, opts => opts.Ignore())
-                .ForMember(d => d.Nome, opts => opts.Condition(src => src.Nome != null))
+                .ForMember(d => d.Nome, opts => opts.Condition(src => src.Nome != null && src.Nome.Length > 3))
                 .ForMember(d => d.Quantidade, opts => opts.Condition(src => src.Quantidade > 0))
                 .ForMember(d => d.Valor, opts => opts.Condition(src => src.Valor > 0));
 
@@ -62,7 +62,9 @@ namespace ApiVendas
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
             services.AddSwaggerGen(c =>
             {
+
                 c.SwaggerDoc("v1", new Info { Title = "Vendas" });
+
             });
             
         }
@@ -83,7 +85,9 @@ namespace ApiVendas
 
             app.UseSwaggerUI(c =>
             {
+
                 c.SwaggerEndpoint("/swagger/v1/swagger.json", "VENDAS");
+
             });
 
             var option = new RewriteOptions();

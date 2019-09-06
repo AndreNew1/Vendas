@@ -58,6 +58,7 @@ namespace Core
             // Se o modelo é inválido retorno false
             if (!results.IsValid)
                 return new Retorno { Status = false, Resultado = results.Errors.Select(c => c.ErrorMessage) };
+
             //Se o cliente ja existe retorno false com a mensagem
             if (Db.Clientes.SingleOrDefault(c => c.CPF == RCliente.CPF) != null)
                 return new Retorno() { Status = false, Resultado = "Cliente ja cadastrado" };
@@ -80,8 +81,8 @@ namespace Core
             var resposta = Mapper.Map<List<ClienteViewRetorno>>(Db.Clientes.OrderBy(x => x.Nome).ToList());
 
                 return resposta.Count!=0?
-                    new Retorno() { Status = true, Resultado = resposta }:
-                    new Retorno() { Status = false, Resultado = "A consulta falhou" };
+                    new Retorno { Status = true, Resultado = resposta }:
+                    new Retorno { Status = false, Resultado = "A consulta falhou" };
         }
 
         /// <summary>
@@ -92,11 +93,12 @@ namespace Core
         
         public Retorno ID(string id)
         {
-            RCliente = Db.Clientes.SingleOrDefault(x => x.Id == Guid.Parse(id));
-            // Se o cliente é inválido retorno false com a messagem
-            return RCliente == null
-                ? new Retorno() { Status = false, Resultado = "Cliente não existe" }
-                : new Retorno() { Status = true, Resultado = Mapper.Map<ClienteViewRetorno>(RCliente) };
+            try
+            {
+                return new Retorno { Status = true, Resultado = Mapper.Map<ClienteViewRetorno>(Db.Clientes.Single(x => x.Id == Guid.Parse(id))) };
+            }
+            catch (Exception) { }
+            return new Retorno { Status = false, Resultado = "Cliente não existe" };
         }
 
         /// <summary>
@@ -107,18 +109,24 @@ namespace Core
         
         public Retorno AtualizaCliente(string id)
         {
+            try
+            {
+                var cliente = Db.Clientes.Single(c => c.Id == Guid.Parse(id));
 
-            var cliente = Db.Clientes.SingleOrDefault(c => c.Id == Guid.Parse(id));
-            //Se o produto ja existe retorno false com a mensagem
-            if (cliente == null)
-                return new Retorno { Status = false, Resultado = "Produto não existe" };
+                Db.Clientes.Remove(cliente);
 
-            //Atualiza o cliente
-            Mapper.Map(RCliente, cliente);
+                //Atualiza o cliente
+                Mapper.Map(RCliente, cliente);
+                
+                if(Db.Clientes.SingleOrDefault(temp=>temp.CPF==cliente.CPF)!=null)
+                    return new Retorno { Status = false, Resultado = "CPF ja cadastrada na base de dados" };
 
-            file.ManipulacaoDeArquivos(Db);
+                file.ManipulacaoDeArquivos(Db);
 
-            return new Retorno { Status = true, Resultado = Mapper.Map<ClienteViewRetorno>(cliente) };
+                return new Retorno { Status = true, Resultado = Mapper.Map<ClienteViewRetorno>(cliente) };
+            }
+            catch (Exception) { }
+            return new Retorno { Status = false, Resultado = "Cliente não existe" };
         }
 
         /// <summary>
@@ -129,51 +137,50 @@ namespace Core
         
         public Retorno DeletaCliente(string id)
         {
-            //Consulta o banco de clientes
-            RCliente = Db.Clientes.SingleOrDefault(c => c.Id == Guid.Parse(id));
-            //Caso o cliente não existe
-            if (RCliente == null)
-                return new Retorno() { Status = false, Resultado = "Produto não existe" };
+            try
+            {
+                //Consulta o banco de clientes
+                RCliente = Db.Clientes.Single(c => c.Id == Guid.Parse(id));
 
-            Db.Clientes.Remove(RCliente);
+                Db.Clientes.Remove(RCliente);
 
-            file.ManipulacaoDeArquivos(Db);
+                file.ManipulacaoDeArquivos(Db);
 
-            return new Retorno { Status = true, Resultado = "Produto Apagado" };
+                return new Retorno { Status = true, Resultado = "Cliente Apagado" };
+            }
+            catch (Exception) { }
+
+            return new Retorno { Status = false, Resultado = "Cliente não Encontrado" };
         }
          
         /// <summary>
         /// Consulta os clientes 
         /// </summary>
-        /// <param name="NumPagina">É para controlar a pagina que esta sendo mostrada</param>
+        /// <param name="NumeroPagina">É para controlar a pagina que esta sendo mostrada</param>
         /// <param name="Ordenacao">É para definir se estara de ordem crescente ou descrescente</param>
         /// <param name="TamanhoPagina">Tamanho da pagina</param>
         /// <returns>Retorna uma lista de clientes</returns>
         
-        public Retorno PorPagina(int NumPagina, string Ordenacao, int TamanhoPagina)
+        public Retorno PorPagina(int NumeroPagina, string Ordem, int TamanhoPagina)
         {
             //limite de elementos por paginas
             if (TamanhoPagina > 30) TamanhoPagina = 30;
 
-            //Calculo para paginas
-            var lista = Db.Pedidos.Count;
-            var Paginas = lista / 15;
-            if (lista % 15 != 0) Paginas += 1;
-
             try
             {
-                Paginas = lista / TamanhoPagina;
-                if (lista % TamanhoPagina != 0) Paginas += 1;
+                var Pagina = Paginas(TamanhoPagina);
 
-                if(Ordenacao.ToLower()=="cpf"&&NumPagina>=1)
+                if (Ordem.ToLower() == "cpf" && NumeroPagina >= 1)
+                    return new Retorno { Status = true, Resultado = (Mapper.Map<List<ClienteViewRetorno>>(Db.Clientes.OrderBy(x => x.CPF).Skip((NumeroPagina - 1) * TamanhoPagina).Take(TamanhoPagina).ToList()), $"Total de paginas: {Pagina}", $"Paginas Restantes: {Pagina - NumeroPagina}") };
 
-                return Ordenacao.ToLower() == "Nome" && NumPagina >= 1 ?
-                      new Retorno { Status = true, Resultado = ( Mapper.Map<ClienteViewRetorno>( Db.Clientes.OrderBy(x => x.Nome).Skip((NumPagina - 1) * TamanhoPagina).Take(TamanhoPagina).ToList()), $"Total de paginas: {Paginas}") } :
-                      new Retorno { Status = true, Resultado = ( Mapper.Map<ClienteViewRetorno>( Db.Clientes.Skip((NumPagina - 1) * TamanhoPagina).Take(TamanhoPagina).ToList()), $"Total de paginas: {Paginas}") };
+                return Ordem.ToLower() == "Nome" && NumeroPagina >= 1 ?
+                      new Retorno { Status = true, Resultado = ( Mapper.Map<List<ClienteViewRetorno>>( Db.Clientes.OrderBy(x => x.Nome).Skip((NumeroPagina - 1) * TamanhoPagina).Take(TamanhoPagina).ToList()), $"Total de paginas: {Pagina}", $"Paginas Restantes: {Pagina - NumeroPagina}") } :
+                      new Retorno { Status = true, Resultado = ( Mapper.Map<List<ClienteViewRetorno>>( Db.Clientes.Skip((NumeroPagina - 1) * TamanhoPagina).Take(TamanhoPagina).ToList()), $"Total de paginas: {Pagina}",$"Paginas Restantes: {Pagina-NumeroPagina}") };
             }
             catch (Exception) { }
+            
             //se paginação é não é possivel
-            return new Retorno { Status = true, Resultado = ( Mapper.Map<ClienteViewRetorno>( Db.Clientes.OrderBy(x => x.DataCadastro).Take(15).ToList()), $"Total de paginas: {Paginas}") };
+            return new Retorno { Status = true, Resultado = ( Mapper.Map<List<ClienteViewRetorno>>( Db.Clientes.Take(15).ToList()), $"Total de paginas: {Paginas(15)}") };
         }
 
         /// <summary>
@@ -190,12 +197,25 @@ namespace Core
 
             //Caso Data final seja nula ou errada
             if (!DateTime.TryParse(DataFinal, out time))
-                return new Retorno { Status = true, Resultado = Mapper.Map<ClienteViewRetorno>(Db.Clientes.Where(x => x.DataCadastro >= date).ToList()) };
+                return new Retorno { Status = true, Resultado = Mapper.Map<List<ClienteViewRetorno>>(Db.Clientes.Where(x => x.DataCadastro >= date).ToList()) };
 
             //Caso Data inicial seja nula ou errada
             return !DateTime.TryParse(DataInicial, out date)
-                ? new Retorno { Status = true, Resultado = Mapper.Map<ClienteViewRetorno>(Db.Clientes.Where(x => x.DataCadastro <= date).ToList()) }
-                : new Retorno { Status = true, Resultado = Mapper.Map<ClienteViewRetorno>(Db.Clientes.Where(x => x.DataCadastro >= date && x.DataCadastro <= time).ToList()) };
+                ? new Retorno { Status = true, Resultado = Mapper.Map<List<ClienteViewRetorno>>(Db.Clientes.Where(x => x.DataCadastro <= date).ToList()) }
+                : new Retorno { Status = true, Resultado = Mapper.Map<List<ClienteViewRetorno>>(Db.Clientes.Where(x => x.DataCadastro >= date && x.DataCadastro <= time).ToList()) };
+        }
+
+        /// <summary>
+        /// Realiza o calculo para saber quantas paginas existem
+        /// </summary>
+        /// <param name="TamanhoPagina">Divisão das paginas</param>
+        /// <returns></returns>
+        public int Paginas(int TamanhoPagina)
+        {
+            //Calculo para paginas
+            var lista = Db.Clientes.Count;
+            var Paginas = lista / TamanhoPagina;
+            return lista % TamanhoPagina != 0 ? Paginas += 1 : Paginas;
         }
     }
 }
