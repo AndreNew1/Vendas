@@ -49,8 +49,8 @@ namespace ApiVendas
                 .ForMember(d => d.Valor, opts => opts.Condition(src => src.Valor > 0));
 
                 cfg.CreateMap<PedidoView, Pedido>()
-                .ForMember(d => d._cliente, opts => opts.MapFrom(s => new Cliente { Id = s.ClienteId }));
-
+                .ForPath(d => d._cliente.Id, opts => opts.MapFrom(s => s.ClienteId));
+                
                 cfg.CreateMap<ComprasView, Produto>();
 
                 cfg.CreateMap<Pedido, PedidoViewRetorno>()

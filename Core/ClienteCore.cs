@@ -171,11 +171,11 @@ namespace Core
                 var Pagina = Paginas(TamanhoPagina);
 
                 if (Ordem.ToLower() == "cpf" && NumeroPagina >= 1)
-                    return new Retorno { Status = true, Resultado = (Mapper.Map<List<ClienteViewRetorno>>(Db.Clientes.OrderBy(x => x.CPF).Skip((NumeroPagina - 1) * TamanhoPagina).Take(TamanhoPagina).ToList()), $"Total de paginas: {Pagina}", $"Paginas Restantes: {Pagina - NumeroPagina}") };
+                    return new Retorno { Status = true, Resultado = (Mapper.Map<List<ClienteViewRetorno>>(Db.Clientes.OrderBy(x => x.CPF).Skip((NumeroPagina - 1) * TamanhoPagina).Take(TamanhoPagina).ToList()), $"Total de paginas: {Pagina}") };
 
                 return Ordem.ToLower() == "Nome" && NumeroPagina >= 1 ?
-                      new Retorno { Status = true, Resultado = ( Mapper.Map<List<ClienteViewRetorno>>( Db.Clientes.OrderBy(x => x.Nome).Skip((NumeroPagina - 1) * TamanhoPagina).Take(TamanhoPagina).ToList()), $"Total de paginas: {Pagina}", $"Paginas Restantes: {Pagina - NumeroPagina}") } :
-                      new Retorno { Status = true, Resultado = ( Mapper.Map<List<ClienteViewRetorno>>( Db.Clientes.Skip((NumeroPagina - 1) * TamanhoPagina).Take(TamanhoPagina).ToList()), $"Total de paginas: {Pagina}",$"Paginas Restantes: {Pagina-NumeroPagina}") };
+                      new Retorno { Status = true, Resultado = ( Mapper.Map<List<ClienteViewRetorno>>( Db.Clientes.OrderBy(x => x.Nome).Skip((NumeroPagina - 1) * TamanhoPagina).Take(TamanhoPagina).ToList()), $"Total de paginas: {Pagina}") } :
+                      new Retorno { Status = true, Resultado = ( Mapper.Map<List<ClienteViewRetorno>>( Db.Clientes.Skip((NumeroPagina - 1) * TamanhoPagina).Take(TamanhoPagina).ToList()), $"Total de paginas: {Pagina}") };
             }
             catch (Exception) { }
             

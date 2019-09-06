@@ -37,10 +37,10 @@ namespace Core
             //Intanciando o mapper
             Mapper = mapper;
 
-            RPedido =Mapper.Map<Pedido>(pedido);
+            RPedido = Mapper.Map<Pedido>(pedido);
 
             //Preenchendo informações do cliente
-            RPedido._cliente = Db.Clientes.SingleOrDefault(temp => temp.Id == RPedido._cliente.Id);
+            RPedido._cliente = Mapper.Map<Cliente>(Db.Clientes.SingleOrDefault(temp => temp.Id == RPedido._cliente.Id));
 
             //Preenchendo informações dos produtos
             RPedido.Compras.ForEach(c => c.Copiar(Db.Produtos.SingleOrDefault(temp => temp.Id == c.Id)));
@@ -48,7 +48,6 @@ namespace Core
             RuleFor(e => e._cliente)
                 .NotNull()
                 .NotEmpty()
-                .Must(cliente=>Db.Clientes.SingleOrDefault(e => e.Id == cliente.Id)!=null)
                 .WithMessage("Cliente não existe na base de dados");
 
             RuleFor(e => e.Compras)
@@ -202,6 +201,12 @@ namespace Core
             return produto.Quantidade>tempProd.Quantidade? false : true;
         }
 
+        /// <summary>
+        /// Realiza o calculo para saber quantas paginas existem
+        /// </summary>
+        /// <param name="TamanhoPagina">Divisão das paginas</param>
+        /// <returns></returns>
+       
         public int CalculoPaginas(int TamanhoPagina)
         {
             //Calculo para paginas
